@@ -3,7 +3,8 @@ use std::sync::Arc;
 use druid::{
     im::Vector,
     widget::{
-        CrossAxisAlignment, Either, Flex, Label, Painter, SizedBox, Spinner, Split, ViewSwitcher,
+        CrossAxisAlignment, Either, Flex, Label, Painter, SizedBox, Spinner, Split, TextBox,
+        ViewSwitcher,
     },
     Application, Color, Insets, Rect, RenderContext, Size, Widget, WidgetExt, WindowState,
 };
@@ -26,22 +27,23 @@ fn titlebar() -> impl Widget<AppState> {
             TitleBar::new(
                 Label::dynamic(crate::ui::compute_window_title)
                     .with_text_size(12.5)
+                    .with_text_color(theme::ICON_COLOR)
                     .center(),
             ),
             1.0,
         )
         .with_child(
             title_bar_button(
-                Painter::new(|ctx, _, _| {
+                Painter::new(|ctx, _, env| {
                     let size = ctx.size().to_vec2();
                     ctx.fill(
                         Rect::new(
-                            size.x / 2. - 10. / 2.,
-                            size.y / 2. - 1. / 2.,
-                            size.x / 2. + 10. / 2.,
-                            size.y / 2. + 1. / 2.,
+                            size.x / 2. - 5.,
+                            size.y / 2. - 0.5,
+                            size.x / 2. + 5.,
+                            size.y / 2. + 0.5,
                         ),
-                        &Color::WHITE,
+                        &env.get(theme::ICON_COLOR),
                     )
                 })
                 .center(),
@@ -76,9 +78,14 @@ fn titlebar() -> impl Widget<AppState> {
             .hover(theme::BACKGROUND_LIGHT),
         )
         .with_child(
-            title_bar_button(QUIT_APP.scale(Size::new(10., 10.)).center())
-                .on_click(|_, _, _| Application::global().quit())
-                .hover(Color::rgb8(228, 16, 34)),
+            title_bar_button(
+                QUIT_APP
+                    .scale(Size::new(10., 10.))
+                    .with_color(theme::ICON_COLOR)
+                    .center(),
+            )
+            .on_click(|_, _, _| Application::global().quit())
+            .hover(Color::rgb8(228, 16, 34)),
         )
         .background(theme::BACKGROUND_DARK)
 }
@@ -131,6 +138,7 @@ fn sidebar_menu_widget() -> impl Widget<AppState> {
 
 fn sidebar_link_widget(title: &str, nav: Nav) -> impl Widget<AppState> {
     Label::new(title)
+        .with_font(theme::UI_FONT_MEDIUM)
         .padding((theme::grid(2.0), theme::grid(1.0)))
         .expand_width()
         .link()

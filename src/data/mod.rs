@@ -17,6 +17,7 @@ use crate::core::Manga;
 pub struct AppState {
     pub theme: Theme,
     pub route: Nav,
+    pub manga_search_url: String,
     pub mangas: Vector<Manga>,
     pub window_state: Arc<WindowState>,
 }
@@ -40,7 +41,8 @@ impl Default for AppState {
         Self {
             theme: Default::default(),
             route: Nav::Home,
-            mangas: vector![manga],
+            manga_search_url: Default::default(),
+            mangas: Default::default(),
             window_state: Arc::new(WindowState::MAXIMIZED),
         }
     }

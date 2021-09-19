@@ -32,7 +32,6 @@ async fn main() {
 
     AsyncDelegate::with_delegate(app, delegate)
         .configure_env(ui::theme::setup)
-        //.use_simple_logger()
         .launch(state)
         .expect("launch failed")
 }
