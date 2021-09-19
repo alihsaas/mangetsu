@@ -173,27 +173,36 @@ fn route_widget() -> impl Widget<AppState> {
 }
 
 fn home_widget() -> impl Widget<AppState> {
-    FutureWidget::new(
-        |_data, _env| async {
-            let mut vectors: Vector<Manga> = Vector::new();
-            while let Some(res) = GlobalAPI::global()
-                .connectors
-                .get(&Connectors::Manganel)
-                .unwrap()
-                .get_mangas_from_page(1)
-                .next()
-                .await
-            {
-                vectors.push_front(res?)
-            }
-            Ok(vectors)
-        },
-        Spinner::new().fix_size(50., 50.).center(),
-        |value: Box<Result<Vector<Manga>, Error>>, data: &mut AppState, _| {
-            //if let Ok(mangas) = *value {
-                data.mangas = value.unwrap();
-            //}
-            mangas_widget().lens(AppState::mangas).boxed()
-        },
-    )
+    Flex::column()
+        .with_child(
+            TextBox::new()
+                .with_placeholder("Manga URL")
+                .lens(AppState::manga_search_url)
+                .fix_width(theme::grid(50.)),
+        )
+        .with_flex_child(
+            FutureWidget::new(
+                |_data, _env| async {
+                    let mut vectors: Vector<Manga> = Vector::new();
+                    let mut stream = GlobalAPI::global()
+                        .connectors
+                        .get(&Connectors::Manganel)
+                        .unwrap()
+                        .get_mangas_from_page(1);
+                    while let Some(res) = stream.next().await {
+                        vectors.push_front(res?)
+                    }
+                    Ok(vectors)
+                },
+                Spinner::new().fix_size(50., 50.).center(),
+                |value: Box<Result<Vector<Manga>, Error>>, data: &mut AppState, _| {
+                    if let Ok(mangas) = *value {
+                        //panic!("{:?}", value);
+                        data.mangas = mangas;
+                    }
+                    mangas_widget().lens(AppState::mangas).boxed()
+                },
+            ),
+            1.,
+        )
 }
