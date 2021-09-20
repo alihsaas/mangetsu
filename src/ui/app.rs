@@ -1,14 +1,11 @@
 use std::sync::Arc;
 
-use druid::{
-    im::Vector,
-    widget::{
-        CrossAxisAlignment, Either, Flex, Label, Painter, SizedBox, Spinner, Split, TextBox,
-        ViewSwitcher,
-    },
-    Application, Color, Insets, Rect, RenderContext, Size, Widget, WidgetExt, WindowState,
-};
+use druid::{Application, Color, Insets, Rect, RenderContext, Size, Target, Widget, WidgetExt, WindowState, im::Vector, widget::{
+        Button, CrossAxisAlignment, Either, Flex, Label, Painter, SizedBox, Spinner, Split,
+        TextBox, ViewSwitcher,
+    }};
 use futures::StreamExt;
+use reqwest::Url;
 
 use crate::controller::NavController;
 use crate::core::{error::Error, Connectors, GlobalAPI, Manga};
@@ -111,6 +108,37 @@ pub fn app_widget() -> impl Widget<AppState> {
 
     let main = Flex::column()
         .cross_axis_alignment(CrossAxisAlignment::Start)
+        .with_child(
+            Flex::row()
+                .with_child(
+                    TextBox::new()
+                        .with_placeholder("Manga URL")
+                        //.controller()
+                        .lens(AppState::manga_search_url)
+                        .fix_width(theme::grid(50.)),
+                )
+                .with_child(Button::new("Search").on_click(|ctx, data: &mut AppState, _| {
+                    let search_url = data.manga_search_url.clone();
+                    let handle = ctx.get_external_handle();
+                    tokio::spawn(async move {
+                        println!("Hello World");
+                        let connector =
+                            dbg!(GlobalAPI::global()
+                                .connectors
+                                .iter()
+                                .find(|(_, connector)| {
+                                    connector
+                                        .can_handle_uri(Url::parse(&search_url).unwrap())
+                                }));
+                        if let Some((_, connector)) = connector {
+                            println!("FOUND");
+                            let manga = connector
+                                .get_manga_from_url(Url::parse(&search_url).unwrap()).await.unwrap();
+                            handle.submit_command(cmd::NAVIGATE, Nav::MangaPage(manga), Target::Auto).unwrap();
+                        }
+                    });
+                })),
+        )
         .with_flex_child(route_widget(), 1.0)
         .background(theme::BACKGROUND_LIGHT);
 
@@ -180,37 +208,28 @@ fn route_widget() -> impl Widget<AppState> {
     )
 }
 
+//TODO: Make this widget stream the result instead of collecting them.
 fn home_widget() -> impl Widget<AppState> {
-    Flex::column()
-        .with_child(
-            TextBox::new()
-                .with_placeholder("Manga URL")
-                .lens(AppState::manga_search_url)
-                .fix_width(theme::grid(50.)),
-        )
-        .with_flex_child(
-            FutureWidget::new(
-                |_data, _env| async {
-                    let mut vectors: Vector<Manga> = Vector::new();
-                    let mut stream = GlobalAPI::global()
-                        .connectors
-                        .get(&Connectors::Manganel)
-                        .unwrap()
-                        .get_mangas_from_page(1);
-                    while let Some(res) = stream.next().await {
-                        vectors.push_front(res?)
-                    }
-                    Ok(vectors)
-                },
-                Spinner::new().fix_size(50., 50.).center(),
-                |value: Box<Result<Vector<Manga>, Error>>, data: &mut AppState, _| {
-                    if let Ok(mangas) = *value {
-                        //panic!("{:?}", value);
-                        data.mangas = mangas;
-                    }
-                    mangas_widget().lens(AppState::mangas).boxed()
-                },
-            ),
-            1.,
-        )
+    FutureWidget::new(
+        |_, _| async {
+            let mut vectors: Vector<Manga> = Vector::new();
+            let mut stream = GlobalAPI::global()
+                .connectors
+                .get(&Connectors::Manganel)
+                .unwrap()
+                .get_mangas_from_page(1);
+            while let Some(res) = stream.next().await {
+                vectors.push_front(res?)
+            }
+            Ok(vectors)
+        },
+        Spinner::new().fix_size(50., 50.).center(),
+        |value: Box<Result<Vector<Manga>, Error>>, data: &mut AppState, _| {
+            if let Ok(mangas) = *value {
+                //panic!("{:?}", value);
+                data.mangas = mangas;
+            }
+            mangas_widget().lens(AppState::mangas).boxed()
+        },
+    )
 }

@@ -10,7 +10,7 @@ use druid::{AppLauncher, WindowDesc};
 use crate::core::GlobalAPI;
 use data::AppState;
 use delegate::Delegate;
-use ui::{app_widget, compute_window_title, theme};
+use ui::{app_widget, compute_window_title, make_menu, theme};
 use widgets::AsyncDelegate;
 
 #[tokio::main]
@@ -21,6 +21,7 @@ async fn main() {
 
     let main_window = WindowDesc::new(app_widget)
         .title(compute_window_title)
+        .menu(make_menu())
         .with_min_size((theme::grid(65.0), theme::grid(25.0)))
         .window_size((theme::grid(70.0), theme::grid(70.0)))
         .set_window_state(*state.window_state)

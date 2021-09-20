@@ -57,6 +57,8 @@ pub fn manga_page_widget(manga: &Manga) -> impl Widget<AppState> {
                 Flex::column().with_flex_child(
                     DynamicSizedBox::new(
                         Label::new(manga.title.to_string())
+                            .with_text_alignment(druid::TextAlignment::Start)
+                            .with_line_break_mode(druid::widget::LineBreaking::WordWrap)
                             .with_text_size(theme::grid(5.))
                             .with_text_color(theme::TEXT_COLOR),
                     ),

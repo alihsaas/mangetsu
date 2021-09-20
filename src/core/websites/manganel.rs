@@ -64,6 +64,38 @@ impl Connector for Manganel {
         }
     }
 
+    /*
+          let request = new Request(uri, this.requestOptions);
+            let data = await this.fetchDOM(request, this.queryMangaTitle);
+            let id = uri.href;
+            let title = data[0].textContent.replace(this.mangaTitleFilter, '').trim();
+            return new Manga(this, id, title);
+    */
+
+    fn get_manga_from_url(&self, manga_url: Url) -> FutureResult<Manga> {
+        Box::pin(async move {
+            let title = {
+                let request = GlobalAPI::global()
+                    .client
+                    .get(manga_url.clone())
+                    .send()
+                    .await
+                    .map_err(|err| Error::RequestFail(err.to_string()))?;
+
+                let dom = Html::parse_document(&request.text().await.unwrap());
+                let title = dom.select(&self.info.query_manga_title);
+                title.last().unwrap().inner_html()
+            };
+
+            Ok(Manga {
+                title,
+                url: manga_url.clone(),
+                icon_url: self.get_manga_icon(manga_url).await?,
+                connector: Connectors::Manganel,
+            })
+        })
+    }
+
     fn get_mangas(&self) -> StreamResult<Manga> {
         Box::pin(async_stream::try_stream! {
             let uri = self

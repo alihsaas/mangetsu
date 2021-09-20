@@ -35,6 +35,8 @@ pub trait Connector {
 
     fn can_handle_uri(&self, uri: Url) -> bool;
 
+    fn get_manga_from_url(&self, manga_url: Url) -> FutureResult<Manga>;
+
     fn get_mangas(&self) -> StreamResult<Manga>;
 
     fn get_manga_icon(&self, manga_url: Url) -> FutureResult<Url>;
