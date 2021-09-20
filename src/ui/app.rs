@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
-use druid::{Application, Color, Insets, Rect, RenderContext, Size, Target, Widget, WidgetExt, WindowState, im::Vector, widget::{
+use druid::{
+    im::Vector,
+    widget::{
         Button, CrossAxisAlignment, Either, Flex, Label, Painter, SizedBox, Spinner, Split,
         TextBox, ViewSwitcher,
-    }};
+    },
+    Application, Color, Insets, Rect, RenderContext, Size, Target, Widget, WidgetExt, WindowState,
+};
 use futures::StreamExt;
 use reqwest::Url;
 
-use crate::controller::NavController;
 use crate::core::{error::Error, Connectors, GlobalAPI, Manga};
 use crate::data::{cmd, AppState, Nav};
 use crate::theme;
@@ -15,6 +18,7 @@ use crate::widgets::{
     icons::{MAXIMIZED, QUIT_APP, RESTORED},
     FutureWidget, MyWidgetExt, ThemeScope, TitleBar,
 };
+use crate::{controller::NavController, data::Theme};
 
 use super::manga::{manga_page_widget, mangas_widget};
 
@@ -97,7 +101,24 @@ pub fn app_widget() -> impl Widget<AppState> {
     let sidebar = Flex::column()
         .must_fill_main_axis(true)
         .with_child(sidebar_menu_widget())
-        .with_default_spacer()
+        //.with_default_spacer()
+        .with_flex_spacer(1.)
+        .with_child(
+            Button::dynamic(|data: &AppState, _| {
+                match data.theme {
+                    Theme::Dark => "Light",
+                    Theme::Light => "Dark",
+                }
+                .to_string()
+            })
+            .on_click(|_, data, _| {
+                data.theme = match data.theme {
+                    Theme::Light => Theme::Dark,
+                    Theme::Dark => Theme::Light,
+                }
+            })
+            .align_right(),
+        )
         .padding(if cfg!(target_os = "macos") {
             // Accommodate the window controls on Mac.
             Insets::new(0.0, 24.0, 0.0, 0.0)
@@ -117,27 +138,32 @@ pub fn app_widget() -> impl Widget<AppState> {
                         .lens(AppState::manga_search_url)
                         .fix_width(theme::grid(50.)),
                 )
-                .with_child(Button::new("Search").on_click(|ctx, data: &mut AppState, _| {
-                    let search_url = data.manga_search_url.clone();
-                    let handle = ctx.get_external_handle();
-                    tokio::spawn(async move {
-                        println!("Hello World");
-                        let connector =
-                            dbg!(GlobalAPI::global()
-                                .connectors
-                                .iter()
-                                .find(|(_, connector)| {
-                                    connector
-                                        .can_handle_uri(Url::parse(&search_url).unwrap())
-                                }));
-                        if let Some((_, connector)) = connector {
-                            println!("FOUND");
-                            let manga = connector
-                                .get_manga_from_url(Url::parse(&search_url).unwrap()).await.unwrap();
-                            handle.submit_command(cmd::NAVIGATE, Nav::MangaPage(manga), Target::Auto).unwrap();
-                        }
-                    });
-                })),
+                .with_child(
+                    Button::new("Search").on_click(|ctx, data: &mut AppState, _| {
+                        let search_url = data.manga_search_url.clone();
+                        let handle = ctx.get_external_handle();
+                        tokio::spawn(async move {
+                            let connector = dbg!(GlobalAPI::global().connectors.iter().find(
+                                |(_, connector)| {
+                                    connector.can_handle_uri(Url::parse(&search_url).unwrap())
+                                }
+                            ));
+                            if let Some((_, connector)) = connector {
+                                let manga = connector
+                                    .get_manga_from_url(Url::parse(&search_url).unwrap())
+                                    .await
+                                    .unwrap();
+                                handle
+                                    .submit_command(
+                                        cmd::NAVIGATE,
+                                        Nav::MangaPage(manga),
+                                        Target::Auto,
+                                    )
+                                    .unwrap();
+                            }
+                        });
+                    }),
+                ),
         )
         .with_flex_child(route_widget(), 1.0)
         .background(theme::BACKGROUND_LIGHT);

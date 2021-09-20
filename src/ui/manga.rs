@@ -1,6 +1,6 @@
 use druid::{
     im::Vector,
-    widget::{CrossAxisAlignment, Flex, FlexParams, Label, Scroll, Spinner},
+    widget::{Button, CrossAxisAlignment, Flex, Label, Scroll, Spinner},
     Color, UnitPoint, Widget, WidgetExt,
 };
 
@@ -44,13 +44,17 @@ pub fn manga_page_widget(manga: &Manga) -> impl Widget<AppState> {
             .cross_axis_alignment(CrossAxisAlignment::Start)
             .with_spacer(30.)
             .with_child(
-                RemoteImage::new(
-                    Spinner::new().fix_size(40., 40.).center(),
-                    move |data: &AppState, _| Some(manga.icon_url.to_string().into()),
-                )
-                .align_vertical(UnitPoint::TOP)
-                .fix_size(225., 325.)
-                .background(Color::BLACK),
+                Flex::column()
+                    .with_child(
+                        RemoteImage::new(
+                            Spinner::new().fix_size(40., 40.).center(),
+                            move |_, _| Some(manga.icon_url.to_string().into()),
+                        )
+                        .align_vertical(UnitPoint::TOP)
+                        .fix_size(225., 325.)
+                        .background(Color::BLACK),
+                    )
+                    .with_child(Button::new("Download").fix_width(225.)),
             )
             .with_spacer(30.)
             .with_flex_child(

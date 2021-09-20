@@ -42,7 +42,7 @@ impl Default for AppState {
             theme: Default::default(),
             route: Nav::Home,
             manga_search_url: Default::default(),
-            mangas: Default::default(),
+            mangas: vector![manga],
             window_state: Arc::new(WindowState::MAXIMIZED),
         }
     }
@@ -57,5 +57,14 @@ pub enum Theme {
 impl Default for Theme {
     fn default() -> Self {
         Theme::Dark
+    }
+}
+
+impl std::fmt::Display for Theme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Dark => "Dark",
+            Self::Light => "Light",
+        })
     }
 }
