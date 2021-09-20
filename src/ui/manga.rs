@@ -4,9 +4,11 @@ use druid::{
     Color, UnitPoint, Widget, WidgetExt,
 };
 
-use crate::core::Manga;
-use crate::data::{cmd, AppState, Nav};
-use crate::widgets::{remote_image::RemoteImage, DynamicSizedBox, GridView};
+use crate::{
+    core::Manga,
+    data::{cmd, AppState, Nav},
+    widgets::{remote_image::RemoteImage, DynamicSizedBox, GridView},
+};
 
 use super::{manga, theme};
 
@@ -60,7 +62,7 @@ pub fn manga_page_widget(manga: &Manga) -> impl Widget<AppState> {
             .with_flex_child(
                 Flex::column().with_flex_child(
                     DynamicSizedBox::new(
-                        Label::new(manga.title.to_string())
+                        Label::new(manga.title)
                             .with_text_alignment(druid::TextAlignment::Start)
                             .with_line_break_mode(druid::widget::LineBreaking::WordWrap)
                             .with_text_size(theme::grid(5.))

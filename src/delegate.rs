@@ -10,9 +10,7 @@ use druid::{
 use lru_cache::LruCache;
 use reqwest::header::{self, CONTENT_TYPE};
 
-use crate::core::GlobalAPI;
-use crate::data::AppState;
-use crate::widgets::remote_image;
+use crate::{core::GlobalAPI, data::AppState, widgets::remote_image};
 
 pub struct Delegate {
     image_cache: LruCache<Arc<str>, ImageBuf>,

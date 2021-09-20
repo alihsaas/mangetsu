@@ -18,13 +18,15 @@
 
 use std::{any::Any, future::Future, pin::Pin, thread};
 
-use druid::widget::prelude::*;
 use druid::{
-    AppDelegate, AppLauncher, Data, ExtEventSink, Handled, Selector, SingleUse, Target, WidgetPod,
+    widget::prelude::*, AppDelegate, AppLauncher, Data, ExtEventSink, Handled, Selector, SingleUse,
+    Target, WidgetPod,
 };
 use flume::{Receiver, Sender};
-use futures::future::{self, BoxFuture};
-use futures::prelude::*;
+use futures::{
+    future::{self, BoxFuture},
+    prelude::*,
+};
 use tokio::runtime;
 
 struct Request {

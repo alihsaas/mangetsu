@@ -1,14 +1,16 @@
 #![allow(dead_code)]
 
-use druid::widget::prelude::*;
-use druid::Data;
+use druid::{widget::prelude::*, Data};
 
-/// A widget that changes size dynamically; the dynamic analogue to [`SizedBox`].
+/// A widget that changes size dynamically; the dynamic analogue to
+/// [`SizedBox`].
 ///
-/// If given a child, this widget forces the child to have a variable width and/or height.
+/// If given a child, this widget forces the child to have a variable width
+/// and/or height.
 ///
-/// If not given a child, The box will try to size itself as a fraction of the parent's
-/// box constraints. If height or width is not set, it will be treated as zero.
+/// If not given a child, The box will try to size itself as a fraction of the
+/// parent's box constraints. If height or width is not set, it will be treated
+/// as zero.
 ///
 /// [`SizedBox`]: druid::widget::SizedBox
 pub struct DynamicSizedBox<T> {

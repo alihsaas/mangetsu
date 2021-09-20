@@ -2,10 +2,10 @@ use druid::{Data, Event, Widget};
 
 /// A TitleBar widget.
 ///
-/// Handles mouse clicks over itself like a titlebar - you can drag the window around by it.
-/// It does prevent some events from being passed into inner, like mouse click.
-/// Presumably, this is because clicking means you are now dragging the window,
-/// not interacting with it.
+/// Handles mouse clicks over itself like a titlebar - you can drag the window
+/// around by it. It does prevent some events from being passed into inner, like
+/// mouse click. Presumably, this is because clicking means you are now dragging
+/// the window, not interacting with it.
 ///
 /// It uses the layout of its inner widget.
 ///

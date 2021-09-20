@@ -32,11 +32,11 @@ enum MinorAxisCount {
 }
 
 impl<T: Data> GridView<T> {
-    /// Create a new grid view widget. The closure will be called when a new item needs
-    /// to be constructed.
+    /// Create a new grid view widget. The closure will be called when a new
+    /// item needs to be constructed.
     ///
-    /// Defaults to a vertical layout, 0 spacing between grid items and 5 items on the
-    /// minor axis
+    /// Defaults to a vertical layout, 0 spacing between grid items and 5 items
+    /// on the minor axis
     pub fn new<W: Widget<T> + 'static>(closure: impl Fn() -> W + 'static) -> Self {
         GridView {
             closure: Box::new(move || Box::new(closure())),
@@ -57,7 +57,8 @@ impl<T: Data> GridView<T> {
     /// This will allow the grid to automatically determine how many items
     /// can be laid out on the minor axis before wrapping.
     ///
-    /// If this is set along with [`with_minor_axis_count`], wrap will take priority.
+    /// If this is set along with [`with_minor_axis_count`], wrap will take
+    /// priority.
     pub fn wrap(mut self) -> Self {
         self.minor_axis_count = MinorAxisCount::Wrap;
         self
@@ -66,18 +67,20 @@ impl<T: Data> GridView<T> {
     /// Builder style method that sets how many elements will be laid out on the
     /// minor axis before the grid wraps around to the next row/column.
     ///
-    /// If the amount of items * size of items is larger than the container, this will
-    /// overflow the container. Use [`wrap`] to automatically wrap grid items.
+    /// If the amount of items * size of items is larger than the container,
+    /// this will overflow the container. Use [`wrap`] to automatically wrap
+    /// grid items.
     pub fn with_minor_axis_count(mut self, count: u64) -> Self {
         self.minor_axis_count = MinorAxisCount::Count(count);
         self
     }
 
-    /// Sets how many elements will be laid out on the minor axis before the grid
-    /// wraps around to the next row/column.
+    /// Sets how many elements will be laid out on the minor axis before the
+    /// grid wraps around to the next row/column.
     ///
-    /// If the amount of items * size of items is larger than the container, this will
-    /// overflow the container. Use [`wrap`] to automatically wrap grid items.
+    /// If the amount of items * size of items is larger than the container,
+    /// this will overflow the container. Use [`wrap`] to automatically wrap
+    /// grid items.
     pub fn set_minor_axis_count(&mut self, count: u64) -> &mut Self {
         self.minor_axis_count = MinorAxisCount::Count(count);
         self
@@ -112,7 +115,8 @@ impl<T: Data> GridView<T> {
         self
     }
 
-    /// Builder style method that sets the spacing between elements horizontally.
+    /// Builder style method that sets the spacing between elements
+    /// horizontally.
     pub fn with_horizontal_spacing(mut self, spacing: impl Into<KeyOrValue<f64>>) -> Self {
         self.horizontal_spacing = spacing.into();
         self
@@ -124,7 +128,8 @@ impl<T: Data> GridView<T> {
         self
     }
 
-    /// When the widget is created or the data changes, create or remove children as needed
+    /// When the widget is created or the data changes, create or remove
+    /// children as needed
     ///
     /// Returns `true` if children were added or removed.
     fn update_child_count(&mut self, data: &impl GridIter<T>, _env: &Env) -> bool {
@@ -148,7 +153,8 @@ pub trait GridIter<T>: Data {
     /// Iterate over each data child.
     fn for_each(&self, cb: impl FnMut(&T, usize));
 
-    /// Iterate over each data child and keep track of changed data to update self.
+    /// Iterate over each data child and keep track of changed data to update
+    /// self.
     fn for_each_mut(&mut self, cb: impl FnMut(&mut T, usize));
 
     /// Return the data length.
@@ -326,8 +332,8 @@ impl<C: Data, T: GridIter<C>> Widget<T> for GridView<C> {
         // let child_bc = constraints(axis, bc, 0., f64::INFINITY);
         // I don't know if this is the right way to go. I would assume a grid is
         // used in a Scroll and that would provide the infinite constraints if necessary
-        // otherwise the scroll will be locked to an axis and provide concrete constraints
-        // on that axis
+        // otherwise the scroll will be locked to an axis and provide concrete
+        // constraints on that axis
         // this has to use axis.constraints function but it is private
         // reimplemented below for convenience
         let child_bc = constraints(axis, bc, 0., axis.major(bc.max()));

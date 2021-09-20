@@ -11,14 +11,16 @@ use druid::{
 use futures::StreamExt;
 use reqwest::Url;
 
-use crate::core::{error::Error, Connectors, GlobalAPI, Manga};
-use crate::data::{cmd, AppState, Nav};
-use crate::theme;
-use crate::widgets::{
-    icons::{MAXIMIZED, QUIT_APP, RESTORED},
-    FutureWidget, MyWidgetExt, ThemeScope, TitleBar,
+use crate::{
+    controller::NavController,
+    core::{error::Error, Connectors, GlobalAPI, Manga},
+    data::{cmd, AppState, Nav, Theme},
+    theme,
+    widgets::{
+        icons::{MAXIMIZED, QUIT_APP, RESTORED},
+        FutureWidget, MyWidgetExt, ThemeScope, TitleBar,
+    },
 };
-use crate::{controller::NavController, data::Theme};
 
 use super::manga::{manga_page_widget, mangas_widget};
 
