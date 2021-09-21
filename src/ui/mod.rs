@@ -1,4 +1,5 @@
 mod app;
+mod chapter;
 mod manga;
 pub mod theme;
 
@@ -19,12 +20,10 @@ pub fn make_menu<T: Data>() -> MenuDesc<T> {
     {
         base = base.append(druid::platform_menus::mac::application::default())
     }
-    /*
     #[cfg(any(target_os = "windows", target_os = "linux"))]
     {
         base = base.append(druid::platform_menus::win::file::default());
     }
-    */
     base.append(
         MenuDesc::new(LocalizedString::new("common-menu-edit-menu"))
             .append(druid::platform_menus::common::undo())
