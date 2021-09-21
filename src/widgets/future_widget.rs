@@ -14,151 +14,24 @@
 
 //! widgets that can run async tasks
 
-// TODO: add StreamWidget
+use std::{any::Any, future::Future, pin::Pin};
 
-use std::{any::Any, future::Future, pin::Pin, thread};
+use druid::{widget::prelude::*, Data, Selector, SingleUse, WidgetPod};
+use futures::future::BoxFuture;
 
-use druid::{
-    widget::prelude::*, AppDelegate, AppLauncher, Data, ExtEventSink, Handled, Selector, SingleUse,
-    Target, WidgetPod,
-};
-use flume::{Receiver, Sender};
-use futures::{
-    future::{self, BoxFuture},
-    prelude::*,
-};
-use tokio::runtime;
-
-struct Request {
-    future: Pin<Box<dyn Future<Output = Box<dyn Any + Send>> + Send>>,
-    sender: WidgetId,
+pub struct FutureRequest {
+    pub future: Pin<Box<dyn Future<Output = Box<dyn Any + Send>> + Send>>,
+    pub sender: WidgetId,
 }
 
-struct Response {
-    value: Box<dyn Any + Send>,
+pub struct FutureResponse {
+    pub value: Box<dyn Any + Send>,
 }
 
-const ASYNC_RESPONSE: Selector<SingleUse<Response>> = Selector::new("druid-async.async-response");
-const SPAWN_ASYNC: Selector<SingleUse<Request>> = Selector::new("druid-async.spawn-async");
-
-pub struct Delegate<T: Data + 'static> {
-    tx: Sender<Request>,
-    inner_delegate: Option<Box<dyn AppDelegate<T>>>,
-}
-
-impl<T: Data + 'static> Delegate<T> {
-    #[allow(clippy::new_ret_no_self)]
-    pub fn new(launcher: AppLauncher<T>) -> AppLauncher<T> {
-        let sink = launcher.get_external_handle();
-        let (tx, rx) = flume::unbounded();
-        thread::spawn(move || {
-            other_thread(sink, rx);
-        });
-
-        launcher.delegate(Self {
-            tx,
-            inner_delegate: None,
-        })
-    }
-
-    pub fn with_delegate(
-        launcher: AppLauncher<T>,
-        delegate: impl AppDelegate<T> + 'static,
-    ) -> AppLauncher<T> {
-        let sink = launcher.get_external_handle();
-        let (tx, rx) = flume::unbounded();
-        thread::spawn(move || {
-            other_thread(sink, rx);
-        });
-
-        launcher.delegate(Self {
-            tx,
-            inner_delegate: Some(Box::new(delegate)),
-        })
-    }
-}
-
-impl<T: Data + 'static> AppDelegate<T> for Delegate<T> {
-    fn command(
-        &mut self,
-        ctx: &mut druid::DelegateCtx,
-        target: druid::Target,
-        cmd: &druid::Command,
-        data: &mut T,
-        env: &Env,
-    ) -> Handled {
-        if let Some(req) = cmd.get(SPAWN_ASYNC) {
-            let req = req.take().expect("Someone stole our SPAWN_ASYNC command.");
-            self.tx.send(req).unwrap();
-            Handled::Yes
-        } else if let Some(inner_delegate) = self.inner_delegate.as_mut() {
-            inner_delegate.command(ctx, target, cmd, data, env)
-        } else {
-            Handled::No
-        }
-    }
-
-    fn event(
-        &mut self,
-        ctx: &mut druid::DelegateCtx,
-        window_id: druid::WindowId,
-        event: Event,
-        data: &mut T,
-        env: &Env,
-    ) -> Option<Event> {
-        self.inner_delegate
-            .as_mut()?
-            .event(ctx, window_id, event, data, env)
-    }
-
-    fn window_added(
-        &mut self,
-        id: druid::WindowId,
-        data: &mut T,
-        env: &Env,
-        ctx: &mut druid::DelegateCtx,
-    ) {
-        if let Some(inner_delegate) = self.inner_delegate.as_mut() {
-            inner_delegate.window_added(id, data, env, ctx)
-        }
-    }
-
-    fn window_removed(
-        &mut self,
-        id: druid::WindowId,
-        data: &mut T,
-        env: &Env,
-        ctx: &mut druid::DelegateCtx,
-    ) {
-        if let Some(inner_delegate) = self.inner_delegate.as_mut() {
-            inner_delegate.window_removed(id, data, env, ctx)
-        }
-    }
-}
-
-// TODO: make this work with other runtimes
-fn other_thread(sink: ExtEventSink, rx: Receiver<Request>) {
-    let rt = runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-    rt.block_on(async {
-        let rx = rx.stream();
-        rx.for_each(|req| {
-            let sink = sink.clone();
-            rt.spawn(async move {
-                let res = req.future.await;
-                let res = Response { value: res };
-                let sender = req.sender;
-
-                sink.submit_command(ASYNC_RESPONSE, SingleUse::new(res), Target::Widget(sender))
-                    .unwrap();
-            });
-            future::ready(())
-        })
-        .await;
-    });
-}
+pub const FUTURE_ASYNC_RESPONSE: Selector<SingleUse<FutureResponse>> =
+    Selector::new("druid-async.future-async-response");
+pub const FUTURE_SPAWN_ASYNC: Selector<SingleUse<FutureRequest>> =
+    Selector::new("druid-async.future-spawn-async");
 
 pub type FutureWidgetAction<T> =
     Box<dyn FnOnce(&T, &Env) -> BoxFuture<'static, Box<dyn Any + Send>>>;
@@ -196,7 +69,7 @@ impl<T, U> FutureWidget<T, U> {
 impl<T: Data, U: 'static> Widget<T> for FutureWidget<T, U> {
     fn event(&mut self, ctx: &mut EventCtx, event: &Event, data: &mut T, env: &Env) {
         if let Event::Command(cmd) = event {
-            if let Some(res) = cmd.get(ASYNC_RESPONSE) {
+            if let Some(res) = cmd.get(FUTURE_ASYNC_RESPONSE) {
                 let res = res.take().unwrap();
                 let value = res.value.downcast::<U>().unwrap();
                 let on_done = self.on_done.take().unwrap();
@@ -205,9 +78,9 @@ impl<T: Data, U: 'static> Widget<T> for FutureWidget<T, U> {
                 return;
             }
             #[cfg(debug_assertions)]
-            if cmd.is(SPAWN_ASYNC) {
-                // SPAWN_ASYNC should always be handled by the delegate
-                panic!("FutureWidget used without using druid_async::Delegate");
+            if cmd.is(FUTURE_SPAWN_ASYNC) {
+                // FUTURE_SPAWN_ASYNC should always be handled by the delegate
+                panic!("FutureWidget used without using AsyncDelegate");
             }
         }
         self.inner.event(ctx, event, data, env);
@@ -215,7 +88,7 @@ impl<T: Data, U: 'static> Widget<T> for FutureWidget<T, U> {
 
     fn lifecycle(&mut self, ctx: &mut LifeCycleCtx, event: &LifeCycle, data: &T, env: &Env) {
         if let LifeCycle::WidgetAdded = event {
-            ctx.submit_command(SPAWN_ASYNC.with(SingleUse::new(Request {
+            ctx.submit_command(FUTURE_SPAWN_ASYNC.with(SingleUse::new(FutureRequest {
                 future: (self.future.take().unwrap())(data, env),
                 sender: ctx.widget_id(),
             })));

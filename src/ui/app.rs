@@ -18,7 +18,7 @@ use crate::{
     theme,
     widgets::{
         icons::{MAXIMIZED, QUIT_APP, RESTORED},
-        FutureWidget, MyWidgetExt, ThemeScope, TitleBar,
+        MyWidgetExt, StreamWidget, ThemeScope, TitleBar,
     },
 };
 
@@ -238,26 +238,19 @@ fn route_widget() -> impl Widget<AppState> {
 
 //TODO: Make this widget stream the result instead of collecting them.
 fn home_widget() -> impl Widget<AppState> {
-    FutureWidget::new(
-        |_, _| async {
-            let mut vectors: Vector<Manga> = Vector::new();
-            let mut stream = GlobalAPI::global()
+    StreamWidget::new(
+        mangas_widget().lens(AppState::mangas),
+        |_, _| {
+            GlobalAPI::global()
                 .connectors
                 .get(&Connectors::Manganel)
                 .unwrap()
-                .get_mangas_from_page(1);
-            while let Some(res) = stream.next().await {
-                vectors.push_front(res?)
-            }
-            Ok(vectors)
+                .get_mangas_from_page(1)
         },
-        Spinner::new().fix_size(50., 50.).center(),
-        |value: Box<Result<Vector<Manga>, Error>>, data: &mut AppState, _| {
-            if let Ok(mangas) = *value {
-                //panic!("{:?}", value);
-                data.mangas = mangas;
+        |value: Box<Result<Manga, Error>>, data: &mut AppState, _| {
+            if let Ok(manga) = *value {
+                data.mangas.push_front(manga);
             }
-            mangas_widget().lens(AppState::mangas).boxed()
         },
     )
 }

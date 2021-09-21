@@ -11,7 +11,7 @@ use druid::{
 pub use nav::Nav;
 use reqwest::Url;
 
-use crate::core::Manga;
+use crate::core::{Chapter, Manga};
 
 #[derive(Data, Lens, Clone)]
 pub struct AppState {
@@ -19,6 +19,7 @@ pub struct AppState {
     pub route: Nav,
     pub manga_search_url: String,
     pub mangas: Vector<Manga>,
+    pub chapters: Vector<Chapter>,
     pub window_state: Arc<WindowState>,
 }
 
@@ -42,6 +43,7 @@ impl Default for AppState {
             theme: Default::default(),
             route: Nav::Home,
             manga_search_url: Default::default(),
+            chapters: vector![],
             mangas: vector![manga],
             window_state: Arc::new(WindowState::MAXIMIZED),
         }

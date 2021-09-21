@@ -64,14 +64,6 @@ impl Connector for Manganel {
         }
     }
 
-    /*
-          let request = new Request(uri, this.requestOptions);
-            let data = await this.fetchDOM(request, this.queryMangaTitle);
-            let id = uri.href;
-            let title = data[0].textContent.replace(this.mangaTitleFilter, '').trim();
-            return new Manga(this, id, title);
-    */
-
     fn get_manga_from_url(&self, manga_url: Url) -> FutureResult<Manga> {
         Box::pin(async move {
             let title = {

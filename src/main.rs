@@ -22,8 +22,7 @@ async fn main() {
     let main_window = WindowDesc::new(app_widget)
         .title(compute_window_title)
         .menu(make_menu())
-        .with_min_size((theme::grid(65.0), theme::grid(25.0)))
-        .window_size((theme::grid(70.0), theme::grid(70.0)))
+        .with_min_size((theme::grid(80.0), theme::grid(80.0)))
         .set_window_state(*state.window_state)
         .show_titlebar(false);
     // Set our initial data

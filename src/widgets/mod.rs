@@ -1,21 +1,25 @@
+mod async_delegate;
 mod dynamic_sized_box;
-mod future_widget;
+pub mod future_widget;
 mod grid;
 mod hover;
 pub mod icons;
 mod link;
 pub mod remote_image;
+pub mod stream_widget;
 mod theme;
 mod titlebar;
 mod utils;
 
-use druid::{Color, Data, KeyOrValue, Widget};
+use druid::{widget::Padding, Color, Data, Insets, KeyOrValue, Widget};
 
+pub use async_delegate::AsyncDelegate;
 pub use dynamic_sized_box::DynamicSizedBox;
-pub use future_widget::{Delegate as AsyncDelegate, FutureWidget};
+pub use future_widget::FutureWidget;
 pub use grid::GridView;
 pub use hover::Hover;
 pub use link::Link;
+pub use stream_widget::StreamWidget;
 pub use theme::ThemeScope;
 pub use titlebar::TitleBar;
 pub use utils::{Border, Clip, Logger};
@@ -36,6 +40,11 @@ pub trait MyWidgetExt<T: Data>: Widget<T> + Sized + 'static {
     fn hover(self, hover_color: impl Into<KeyOrValue<Color>>) -> Hover<T> {
         Hover::new(self, hover_color)
     }
+
+    fn padding_right(self, p: f64) -> Padding<T> {
+        Padding::new(Insets::new(0.0, 0.0, p, 0.0), self)
+    }
+
     /*
     fn on_debounce(
         self,
