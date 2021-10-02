@@ -1,10 +1,10 @@
-use reqwest::Url;
+use std::sync::Arc;
 
 use crate::core::Connectors;
 
 #[derive(Clone, Debug)]
 pub struct Page {
-    pub url: Url,
-    pub referer: Url,
+    pub url: Arc<str>,
+    pub referer: Arc<str>,
     pub connector: Connectors,
 }

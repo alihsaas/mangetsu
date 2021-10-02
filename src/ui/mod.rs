@@ -10,7 +10,7 @@ pub use app::app_widget;
 use crate::data::AppState;
 
 pub fn compute_window_title(data: &AppState, _env: &Env) -> String {
-    format!("Mangetsu - [{}]", data.route.full_title())
+    format!("Mangetsu - [{}]", data.route.full_title(data))
 }
 
 #[allow(unused_assignments, unused_mut)]

@@ -1,6 +1,9 @@
-use druid::widget::{prelude::*, Controller};
+use druid::{
+    im::Vector,
+    widget::{prelude::*, Controller},
+};
 
-use crate::data::{cmd, AppState, Nav};
+use crate::data::{cmd, AppState, MangaDetail, Nav};
 
 pub struct NavController;
 
@@ -9,8 +12,20 @@ impl NavController {
         match &data.route {
             Nav::Home => {}
             Nav::Downloads => {}
-            Nav::MangaPage(_) => {}
-        }
+            Nav::MangaPage(url) => {
+                data.manga_detail = Some(MangaDetail {
+                    manga: data
+                        .manga_cache
+                        .lock()
+                        .unwrap()
+                        .get_mut(url)
+                        .unwrap()
+                        .clone(),
+                    chapters: Vector::new(),
+                })
+            }
+        };
+        data.mangas = Vector::new();
     }
 }
 

@@ -1,16 +1,22 @@
 use std::{
     io::{copy, Cursor},
+    path::Path,
     sync::Arc,
 };
 
 use druid::{
+    im::Vector,
     image::{self, ImageFormat},
     AppDelegate, Command, DelegateCtx, Env, ExtEventSink, Handled, ImageBuf, Target,
 };
 use lru_cache::LruCache;
 use reqwest::header::{self, CONTENT_TYPE};
 
-use crate::{core::GlobalAPI, data::AppState, widgets::remote_image};
+use crate::{
+    core::GlobalAPI,
+    data::{cmd, start_download, AppState, DownloadJob},
+    widgets::remote_image,
+};
 
 pub struct Delegate {
     image_cache: LruCache<Arc<str>, ImageBuf>,
@@ -38,7 +44,11 @@ impl AppDelegate<AppState> for Delegate {
         data: &mut AppState,
         _env: &Env,
     ) -> Handled {
-        self.command_image(ctx, target, cmd, data)
+        if let Handled::Yes = self.command_image(ctx, target, cmd, data) {
+            Handled::Yes
+        } else {
+            self.command_download(ctx, target, cmd, data)
+        }
     }
 }
 
@@ -95,7 +105,23 @@ impl Delegate {
         _data: &mut AppState,
     ) -> Handled {
         if let Some(location) = cmd.get(remote_image::REQUEST_DATA).cloned() {
+            log::info!("Reqesting Image");
+            let image_key = Path::new(location.as_ref()).file_name().unwrap().to_owned();
+            let cache = &GlobalAPI::global().cache;
             if let Some(image_buf) = self.image_cache.get_mut(&location).cloned() {
+                log::info!("Memory Image");
+                let payload = remote_image::ImagePayload {
+                    location,
+                    image_buf,
+                };
+
+                self.event_sink
+                    .submit_command(remote_image::PROVIDE_DATA, payload, target)
+                    .expect("Command failed to submit");
+            } else if let Some(image_buf) =
+                cache.get_image("images", image_key.to_string_lossy().as_ref())
+            {
+                log::info!("Old Image");
                 let payload = remote_image::ImagePayload {
                     location,
                     image_buf,
@@ -105,12 +131,14 @@ impl Delegate {
                     .submit_command(remote_image::PROVIDE_DATA, payload, target)
                     .expect("Command failed to submit");
             } else {
+                log::info!("Grabbing Image");
                 let event_sink = self.event_sink.clone();
                 tokio::spawn(async move {
-                    let image_buf = {
+                    let image_buf: ImageBuf = {
                         let dyn_image = get_image(&location, None).await.unwrap();
                         ImageBuf::from_dynamic_image(dyn_image)
                     };
+                    cache.set_image("images", image_key.to_string_lossy().as_ref(), &image_buf);
                     let payload = remote_image::ImagePayload {
                         location,
                         image_buf,
@@ -124,6 +152,79 @@ impl Delegate {
         } else if let Some(payload) = cmd.get(remote_image::PROVIDE_DATA).cloned() {
             self.image_cache.insert(payload.location, payload.image_buf);
             Handled::No
+        } else {
+            Handled::No
+        }
+    }
+
+    fn command_download(
+        &mut self,
+        _ctx: &mut DelegateCtx,
+        _target: Target,
+        cmd: &Command,
+        data: &mut AppState,
+    ) -> Handled {
+        if let Some(chapter) = cmd.get(cmd::DOWNLOAD_CHAPTER).cloned() {
+            let download_job = DownloadJob::new(chapter.clone());
+            data.download_queue
+                .0
+                .entry(chapter.manga.url)
+                .or_insert(Vector::new())
+                .push_back(download_job);
+
+            if data.download_queue.0.first().unwrap().1.len() == 1 {
+                self.event_sink
+                    .submit_command(cmd::START_DOWNLOAD, (), Target::Auto)
+                    .unwrap();
+            };
+            Handled::Yes
+        } else if let Some(()) = cmd.get(cmd::START_DOWNLOAD) {
+            if let Some((_, download_queue)) = data.download_queue.0.first() {
+                if let Some(download_job) = download_queue.get(0).cloned() {
+                    let event_sink = self.event_sink.clone();
+                    tokio::spawn(async move {
+                        log::info!(
+                            "Starting download of {}",
+                            download_job.chapter.title.as_ref()
+                        );
+                        if start_download(&download_job.chapter, event_sink.clone())
+                            .await
+                            .is_ok()
+                        {
+                            event_sink
+                                .submit_command(cmd::POP_QUEUE, (), Target::Auto)
+                                .unwrap();
+                            event_sink
+                                .submit_command(cmd::START_DOWNLOAD, (), Target::Auto)
+                                .unwrap();
+                        };
+                    });
+                }
+            };
+            Handled::Yes
+        } else if let Some(()) = cmd.get(cmd::POP_QUEUE) {
+            if let Some((_, download_queue)) = data.download_queue.0.first_mut() {
+                download_queue.pop_front();
+                if download_queue.is_empty() {
+                    data.download_queue.0.pop();
+                }
+            }
+            Handled::Yes
+        } else if let Some((chapter, progress)) = cmd.get(cmd::UPDATE_DOWNLOAD_PROGRESS).cloned() {
+            let manga_download_queue = &mut data.download_queue.0;
+            if let Some((_, download_queue)) = manga_download_queue.first() {
+                let (index, previous_download_job) = download_queue
+                    .iter()
+                    .enumerate()
+                    .find(|(_index, download_job)| download_job.chapter.url == chapter.url)
+                    .unwrap();
+                let new_download_queue = download_queue.update(
+                    index,
+                    DownloadJob::with_progress(previous_download_job.chapter.clone(), progress),
+                );
+                manga_download_queue.insert(chapter.manga.url, new_download_queue);
+            }
+            Handled::Yes
         } else {
             Handled::No
         }

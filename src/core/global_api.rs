@@ -1,11 +1,13 @@
+use std::{path::PathBuf, sync::Arc};
+
 use indexmap::{indexmap, IndexMap};
 use once_cell::sync::OnceCell;
 use reqwest::{header, Client};
-use std::sync::Arc;
+use serde::{Deserialize, Serialize};
 
-use crate::core::{websites::manganel::Manganel, Connector};
+use crate::core::{cache::Cache, websites::manganel::Manganel, Connector};
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Connectors {
     Manganel,
 }
@@ -28,10 +30,11 @@ type Value = Box<dyn Connector + Send + Sync>;
 pub struct GlobalAPI {
     pub connectors: IndexMap<Connectors, Value>,
     pub client: Client,
+    pub cache: Cache,
 }
 
 impl GlobalAPI {
-    pub fn install() {
+    pub fn install(cache_base: Option<PathBuf>) {
         let connectors = indexmap! {
             Connectors::Manganel => Box::new(Manganel::new()) as Value,
         };
@@ -44,6 +47,7 @@ impl GlobalAPI {
             .set(Arc::new(GlobalAPI {
                 connectors,
                 client: Client::builder().default_headers(headers).build().unwrap(),
+                cache: Cache::new(cache_base),
             }))
             .unwrap();
     }

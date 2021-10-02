@@ -1,14 +1,26 @@
+use std::sync::Arc;
+
 use druid::{Data, Lens};
-use reqwest::Url;
+use serde::{Deserialize, Serialize};
 
-use crate::core::Connectors;
+use super::{connector::StreamResult, Chapter, Connectors, GlobalAPI};
 
-#[derive(Clone, Debug, Eq, Lens)]
+#[derive(Clone, Debug, Eq, Lens, Deserialize, Serialize)]
 pub struct Manga {
-    pub url: Url,
-    pub title: String,
-    pub icon_url: Url,
+    pub url: Arc<str>,
+    pub title: Arc<str>,
+    pub icon_url: Arc<str>,
     pub connector: Connectors,
+}
+
+impl Manga {
+    pub fn get_chapters(&self) -> StreamResult<Chapter> {
+        GlobalAPI::global()
+            .connectors
+            .get(&self.connector)
+            .unwrap()
+            .get_chapters(self.clone())
+    }
 }
 
 impl PartialEq for Manga {

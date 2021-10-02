@@ -10,9 +10,9 @@ pub fn grid(m: f64) -> f64 {
 
 pub const GRID: f64 = 8.0;
 
-pub const TEXT_COLOR: Key<Color> = Key::new("org.linebender.druid.theme.label_color");
+pub const TEXT_COLOR: Key<Color> = Key::new("org.linebender.druid.config.theme.label_color");
 pub const SELECTED_TEXT_BACKGROUND_COLOR: Key<Color> =
-    Key::new("org.linebender.druid.theme.selection_color");
+    Key::new("org.linebender.druid.config.theme.selection_color");
 
 pub const GREY_000: Key<Color> = Key::new("app.grey_000");
 pub const GREY_100: Key<Color> = Key::new("app.grey_100");
@@ -45,7 +45,7 @@ pub const LINK_ACTIVE_COLOR: Key<Color> = Key::new("app.link-active-color");
 pub const LINK_COLD_COLOR: Key<Color> = Key::new("app.link-cold-color");
 
 pub fn setup(env: &mut Env, state: &AppState) {
-    match state.theme {
+    match state.config.theme {
         Theme::Light => setup_light_theme(env),
         Theme::Dark => setup_dark_theme(env),
     };
@@ -62,7 +62,7 @@ pub fn setup(env: &mut Env, state: &AppState) {
     env.set(FOREGROUND_LIGHT, env.get(GREY_100));
     env.set(FOREGROUND_DARK, env.get(GREY_000));
 
-    match state.theme {
+    match state.config.theme {
         Theme::Light => {
             env.set(BUTTON_LIGHT, env.get(GREY_700));
             env.set(BUTTON_DARK, env.get(GREY_600));

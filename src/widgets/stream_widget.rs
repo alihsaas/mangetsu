@@ -26,16 +26,6 @@ pub struct StreamWidget<T, U> {
     on_done: AsyncGridDone<T, U>,
 }
 
-/// The number of elements found on the minor axis of the grid
-enum MinorAxisCount {
-    /// If this is wrap, the grid determines the max amount of items per
-    /// minor axis. Wrap assumes the grid items are equal in size.
-    Wrap,
-    /// A user specified number of elements on minor axis. Can overflow
-    /// the container if the count * size of grid items is larger than container
-    Count(u64), // this should probably take a KeyOrValue<u64> instead
-}
-
 impl<T, U> StreamWidget<T, U> {
     pub fn new<SMaker, IStream, Done>(
         inner: impl Widget<T> + 'static,

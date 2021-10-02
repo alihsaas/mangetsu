@@ -80,9 +80,9 @@ impl Connector for Manganel {
             };
 
             Ok(Manga {
-                title,
-                url: manga_url.clone(),
-                icon_url: self.get_manga_icon(manga_url).await?,
+                title: title.into(),
+                url: manga_url.as_str().into(),
+                icon_url: self.get_manga_icon(manga_url).await?.as_str().into(),
                 connector: Connectors::Manganel,
             })
         })
@@ -132,7 +132,7 @@ impl Connector for Manganel {
             let src = {
                 let request = GlobalAPI::global()
                     .client
-                    .get(manga_url.clone())
+                    .get(manga_url)
                     .send()
                     .await
                     .map_err(|err| Error::RequestFail(err.to_string()))?;
@@ -163,25 +163,23 @@ impl Connector for Manganel {
 
                 dom.select(&self.info.query_mangas)
                     .map(|element_ref| {
-                        let element = element_ref.value();
                         let title = self
                             .info
                             .manga_title_filter
-                            .replace(element.attr("title").unwrap(), "")
+                            .replace(&element_ref.inner_html(), "")
                             .trim()
                             .to_string();
-                        let manga_url = Url::parse(element.attr("href").unwrap()).unwrap();
+                        let manga_url = Url::parse(element_ref.value().attr("href").unwrap()).unwrap();
                         (title, manga_url)
                 })
                 .collect()
             };
 
-            for info in data {
-                let manga_url = info.1.clone();
+            for (title, manga_url) in data {
                 yield Manga {
-                    title: info.0.clone(),
-                    url: info.1.clone(),
-                    icon_url: self.get_manga_icon(manga_url).await.unwrap(),
+                    title: title.into(),
+                    url: manga_url.as_str().into(),
+                    icon_url: self.get_manga_icon(manga_url).await.unwrap().as_str().into(),
                     connector: Connectors::Manganel,
                 }
             }
@@ -193,19 +191,18 @@ impl Connector for Manganel {
             let info: Vec<(Url, String)> = {
                 let request = GlobalAPI::global()
                     .client
-                    .get(manga.url)
+                    .get(Url::parse(&manga.url).unwrap())
                     .send()
                     .await
                     .map_err(|err| Error::RequestFail(err.to_string()))?;
                 let dom = Html::parse_document(&request.text().await.unwrap());
                 dom.select(&self.info.query_chapters)
                     .map(|element_ref| {
-                        let element = element_ref.value();
-                        let url = Url::parse(element.attr("href").unwrap()).unwrap();
+                        let url = Url::parse(element_ref.value().attr("href").unwrap()).unwrap();
                         let title = self
                             .info
                             .chapter_title_filter
-                            .replace(element.attr("title").unwrap(), "")
+                            .replace(&element_ref.inner_html().replace(manga.title.as_ref(), ""), "")
                             .trim()
                             .to_string();
                         (url, title)
@@ -215,10 +212,10 @@ impl Connector for Manganel {
 
             for element_info in info {
                 yield Chapter {
-                    url: element_info.0.clone(),
-                    title: element_info.1.clone(),
-                    language: String::from(""),
+                    url: element_info.0.as_str().into(),
+                    title: element_info.1.into(),
                     connector: Connectors::Manganel,
+                    manga: manga.clone(),
                 }
             }
         })
@@ -226,11 +223,11 @@ impl Connector for Manganel {
 
     fn get_pages(&self, chapter: Chapter) -> StreamResult<Page> {
         Box::pin(async_stream::try_stream! {
-            let info: Vec<Url> = {
+            let info: Vec<_> = {
                 let dom = {
                     let request = GlobalAPI::global()
                         .client
-                        .get(chapter.url.clone())
+                        .get(Url::parse(&chapter.url).unwrap())
                         .send()
                         .await
                         .map_err(|err| Error::RequestFail(err.to_string()))?;
@@ -239,14 +236,14 @@ impl Connector for Manganel {
                 dom.select(&self.info.query_pages)
                     .map(|element_ref| {
                         let element = element_ref.value();
-                        Url::parse(element.attr("src").unwrap()).unwrap()
+                        element.attr("src").unwrap().into()
                     })
                     .collect()
             };
 
             for page_url in info {
                 yield Page {
-                    url: page_url.clone(),
+                    url: page_url,
                     referer: chapter.url.clone(),
                     connector: Connectors::Manganel,
                 }

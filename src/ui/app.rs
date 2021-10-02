@@ -2,23 +2,24 @@ use std::sync::Arc;
 
 use druid::{
     im::Vector,
+    piet::PaintBrush,
     widget::{
-        Button, CrossAxisAlignment, Either, Flex, Label, Painter, SizedBox, Spinner, Split,
+        Button, CrossAxisAlignment, Either, Flex, Label, List, Painter, Scroll, SizedBox, Split,
         TextBox, ViewSwitcher,
     },
-    Application, Color, Insets, Rect, RenderContext, Size, Target, Widget, WidgetExt, WindowState,
+    Application, Color, Insets, LensExt, Rect, RenderContext, Size, Target, Widget, WidgetExt,
+    WindowState,
 };
-use futures::StreamExt;
 use reqwest::Url;
 
 use crate::{
     controller::NavController,
-    core::{error::Error, Connectors, GlobalAPI, Manga},
-    data::{cmd, AppState, Nav, Theme},
+    core::{error::Error, Chapter, Connectors, GlobalAPI, Manga},
+    data::{cmd, AppState, DownloadJob, Nav, Theme},
     theme,
     widgets::{
         icons::{MAXIMIZED, QUIT_APP, RESTORED},
-        MyWidgetExt, StreamWidget, ThemeScope, TitleBar,
+        MyWidgetExt, ProgressBar, StreamWidget, ThemeScope, TitleBar,
     },
 };
 
@@ -103,18 +104,17 @@ pub fn app_widget() -> impl Widget<AppState> {
     let sidebar = Flex::column()
         .must_fill_main_axis(true)
         .with_child(sidebar_menu_widget())
-        //.with_default_spacer()
-        .with_flex_spacer(1.)
+        .with_flex_child(manga_download_widget(), 1.)
         .with_child(
             Button::dynamic(|data: &AppState, _| {
-                match data.theme {
+                match data.config.theme {
                     Theme::Dark => "Light",
                     Theme::Light => "Dark",
                 }
                 .to_string()
             })
             .on_click(|_, data, _| {
-                data.theme = match data.theme {
+                data.config.theme = match data.config.theme {
                     Theme::Light => Theme::Dark,
                     Theme::Dark => Theme::Light,
                 }
@@ -158,7 +158,7 @@ pub fn app_widget() -> impl Widget<AppState> {
                                 handle
                                     .submit_command(
                                         cmd::NAVIGATE,
-                                        Nav::MangaPage(manga),
+                                        Nav::MangaPage(manga.url),
                                         Target::Auto,
                                     )
                                     .unwrap();
@@ -180,9 +180,56 @@ pub fn app_widget() -> impl Widget<AppState> {
     root.add_child(titlebar());
 
     ThemeScope::new(root.with_flex_child(split, 1.)).controller(NavController)
-    // .debug_invalidation()
-    // .debug_widget_id()
-    // .debug_paint_layout()
+    //    .debug_invalidation()
+    //    .debug_widget_id()
+    //    .debug_paint_layout()
+}
+
+fn truncate(string: &str, len: usize) -> String {
+    if string.len() > len {
+        format!("{}...", string[..len].to_string())
+    } else {
+        string.to_string()
+    }
+}
+
+fn download_widget() -> impl Widget<DownloadJob> {
+    Flex::column()
+        .with_child(
+            Label::dynamic(|data: &Chapter, _| truncate(&data.manga.title, 30))
+                .with_text_color(theme::TEXT_COLOR)
+                .lens(DownloadJob::chapter),
+        )
+        .with_child(
+            Flex::row()
+                .with_flex_child(
+                    Label::raw()
+                        .with_text_color(theme::TEXT_COLOR)
+                        .expand_width()
+                        .lens(DownloadJob::chapter.then(Chapter::title)),
+                    1.,
+                )
+                .with_child(
+                    ProgressBar::new()
+                        .with_bar_brush(PaintBrush::Color(Color::RED))
+                        .with_corner_radius(2.)
+                        .with_border_width(2.)
+                        .fix_width(theme::grid(20.))
+                        .align_right()
+                        .lens(DownloadJob::progress),
+                ),
+        )
+        .cross_axis_alignment(CrossAxisAlignment::Start)
+}
+
+fn chapter_download_widget() -> impl Widget<Vector<DownloadJob>> {
+    Scroll::new(List::new(download_widget)).vertical()
+}
+
+fn manga_download_widget() -> impl Widget<AppState> {
+    Scroll::new(List::new(chapter_download_widget).lens(AppState::download_queue))
+        .vertical()
+        .expand_height()
 }
 
 fn sidebar_menu_widget() -> impl Widget<AppState> {
@@ -231,12 +278,11 @@ fn route_widget() -> impl Widget<AppState> {
         |value: &Nav, _, _| match value {
             Nav::Home => home_widget().boxed(),
             Nav::Downloads => Label::new("No").boxed(),
-            Nav::MangaPage(manga) => manga_page_widget(manga).boxed(),
+            Nav::MangaPage(_) => manga_page_widget().lens(AppState::manga_detail).boxed(),
         },
     )
 }
 
-//TODO: Make this widget stream the result instead of collecting them.
 fn home_widget() -> impl Widget<AppState> {
     StreamWidget::new(
         mangas_widget().lens(AppState::mangas),
@@ -249,6 +295,11 @@ fn home_widget() -> impl Widget<AppState> {
         },
         |value: Box<Result<Manga, Error>>, data: &mut AppState, _| {
             if let Ok(manga) = *value {
+                let inner_manga = manga.clone();
+                data.manga_cache
+                    .lock()
+                    .unwrap()
+                    .insert(inner_manga.url.clone(), inner_manga);
                 data.mangas.push_front(manga);
             }
         },

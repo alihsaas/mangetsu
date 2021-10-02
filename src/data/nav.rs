@@ -1,28 +1,44 @@
+use std::sync::Arc;
+
 use druid::Data;
+use serde::{Deserialize, Serialize};
 
-use crate::core::Manga;
+use super::AppState;
 
-#[derive(Clone, Debug, Data, PartialEq, Eq)]
+#[derive(Clone, Debug, Data, PartialEq, Eq, Deserialize, Serialize)]
 pub enum Nav {
     Home,
     Downloads,
-    MangaPage(Manga),
+    MangaPage(Arc<str>),
 }
 
 impl Nav {
-    pub fn title(&self) -> String {
+    pub fn title(&self, data: &AppState) -> String {
         match self {
             Nav::Home => "Home".to_string(),
             Nav::Downloads => "Downloads".to_string(),
-            Nav::MangaPage(manga) => manga.title.to_string(),
+            Nav::MangaPage(manga) => data
+                .manga_cache
+                .lock()
+                .unwrap()
+                .get_mut(manga)
+                .map(|manga| manga.title.clone())
+                .unwrap_or_else(|| "Manga Not Found".into())
+                .to_string(),
         }
     }
 
-    pub fn full_title(&self) -> String {
+    pub fn full_title(&self, data: &AppState) -> String {
         match self {
             Nav::Home => "Home".to_string(),
             Nav::Downloads => "Downloads".to_string(),
-            Nav::MangaPage(manga) => format!("Manga - {} - {}", manga.title, manga.connector),
+            Nav::MangaPage(manga) => data
+                .manga_cache
+                .lock()
+                .unwrap()
+                .get_mut(manga)
+                .map(|manga| format!("Manga - {} - {}", manga.title, manga.connector))
+                .unwrap_or_else(|| "Manga Not Found".into()),
         }
     }
 }

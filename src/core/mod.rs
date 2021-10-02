@@ -1,3 +1,4 @@
+pub mod cache;
 mod chapter;
 mod connector;
 pub mod error;
