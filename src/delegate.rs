@@ -10,11 +10,11 @@ use druid::{
     AppDelegate, Command, DelegateCtx, Env, ExtEventSink, Handled, ImageBuf, Target,
 };
 use lru_cache::LruCache;
-use reqwest::header::{self, CONTENT_TYPE};
+use reqwest::{Url, header::{self, CONTENT_TYPE}};
 
 use crate::{
     core::GlobalAPI,
-    data::{cmd, start_download, AppState, DownloadJob},
+    data::{cmd, start_download, AppState, DownloadJob, MangaDetail},
     widgets::remote_image,
 };
 
@@ -44,7 +44,33 @@ impl AppDelegate<AppState> for Delegate {
         data: &mut AppState,
         _env: &Env,
     ) -> Handled {
-        if let Handled::Yes = self.command_image(ctx, target, cmd, data) {
+        if let Some(manga_url) = cmd.get(cmd::FETCH_MANGA_DETAIL).cloned() {
+            let event_sink = self.event_sink.clone();
+            tokio::spawn(async move {
+                let connector = dbg!(GlobalAPI::global().connectors.iter().find(
+                    |(_, connector)| {
+                        connector.can_handle_uri(Url::parse(manga_url.as_ref()).unwrap())
+                    }
+                ));
+                if let Some((_, connector)) = connector {
+                    let manga = connector
+                        .get_manga_from_url(Url::parse(manga_url.as_ref()).unwrap())
+                        .await
+                        .unwrap();
+
+                    event_sink
+                        .submit_command(cmd::LOAD_MANGA_DETAIL, manga, Target::Auto)
+                        .expect("Command failed to submit");
+                }
+            });
+            Handled::Yes
+        } else if let Some(manga) = cmd.get(cmd::LOAD_MANGA_DETAIL).cloned() {
+            data.manga_detail = Some(MangaDetail {
+                manga,
+                chapters: Vector::new(),
+            });
+            Handled::Yes
+        } else if let Handled::Yes = self.command_image(ctx, target, cmd, data) {
             Handled::Yes
         } else {
             self.command_download(ctx, target, cmd, data)

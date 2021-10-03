@@ -8,21 +8,19 @@ use crate::data::{cmd, AppState, MangaDetail, Nav};
 pub struct NavController;
 
 impl NavController {
-    fn load_route_data(&self, _ctx: &mut EventCtx, data: &mut AppState) {
+    fn load_route_data(&self, ctx: &mut EventCtx, data: &mut AppState) {
         match &data.route {
             Nav::Home => {}
             Nav::Downloads => {}
             Nav::MangaPage(url) => {
-                data.manga_detail = Some(MangaDetail {
-                    manga: data
-                        .manga_cache
-                        .lock()
-                        .unwrap()
-                        .get_mut(url)
-                        .unwrap()
-                        .clone(),
-                    chapters: Vector::new(),
-                })
+                if let Some(manga) = data.manga_cache.lock().unwrap().get_mut(url) {
+                    data.manga_detail = Some(MangaDetail {
+                        manga: manga.to_owned(),
+                        chapters: Vector::new(),
+                    });
+                } else {
+                    ctx.submit_command(cmd::FETCH_MANGA_DETAIL.with(url.to_owned()));
+                }
             }
         };
         data.mangas = Vector::new();
