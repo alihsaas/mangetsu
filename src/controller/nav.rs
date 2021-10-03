@@ -16,6 +16,8 @@ impl NavController {
                 if let Some(manga) = data.manga_cache.lock().unwrap().get_mut(url) {
                     data.manga_detail = Some(MangaDetail {
                         manga: manga.to_owned(),
+                        start: 1,
+                        end: 1,
                         chapters: Vector::new(),
                     });
                 } else {

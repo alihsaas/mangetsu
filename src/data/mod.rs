@@ -25,6 +25,8 @@ use crate::core::{Chapter, Manga};
 #[derive(Data, Lens, Clone)]
 pub struct MangaDetail {
     pub manga: Manga,
+    pub start: u16,
+    pub end: u16,
     pub chapters: Vector<Chapter>,
 }
 

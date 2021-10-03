@@ -1,6 +1,7 @@
 use druid::{
     im::Vector,
-    widget::{Button, CrossAxisAlignment, Flex, FlexParams, Label, Scroll, Spinner},
+    text::format::ParseFormatter,
+    widget::{Button, CrossAxisAlignment, Flex, FlexParams, Label, Scroll, Spinner, TextBox},
     Color, LensExt, UnitPoint, Widget, WidgetExt,
 };
 use futures::StreamExt;
@@ -60,12 +61,38 @@ pub fn manga_page_widget() -> impl Widget<Option<MangaDetail>> {
                                 .fix_size(225., 325.)
                                 .background(Color::BLACK),
                             )
-                            .with_child(Button::new("Download").fix_width(225.))
-                            .on_click(|ctx, data, _| {
-                                for chapter in &data.chapters {
-                                    ctx.submit_command(cmd::DOWNLOAD_CHAPTER.with(chapter.clone()))
-                                }
-                            }),
+                            .with_child(
+                                Button::new("Download")
+                                    .on_click(|ctx, data: &mut MangaDetail, _| {
+                                        let chapters = data
+                                            .chapters
+                                            .clone()
+                                            .slice((data.start-1) as usize..data.end as usize);
+                                        for chapter in chapters {
+                                            ctx.submit_command(cmd::DOWNLOAD_CHAPTER.with(chapter))
+                                        }
+                                    })
+                                    .fix_width(225.),
+                            )
+                            .with_child(
+                                Flex::row()
+                                    .with_child(
+                                        TextBox::with_formatter(
+                                            TextBox::new(),
+                                            ParseFormatter::new(),
+                                        )
+                                        .lens(MangaDetail::start)
+                                        .align_left(),
+                                    )
+                                    .with_child(
+                                        TextBox::with_formatter(
+                                            TextBox::new(),
+                                            ParseFormatter::new(),
+                                        )
+                                        .lens(MangaDetail::end)
+                                        .align_right(),
+                                    ),
+                            ),
                     )
                     .with_spacer(30.)
                     .with_flex_child(
@@ -101,6 +128,7 @@ pub fn manga_page_widget() -> impl Widget<Option<MangaDetail>> {
                                      data: &mut MangaDetail,
                                      _| {
                                         if let Ok(chapters) = *value {
+                                            data.end = chapters.len() as u16;
                                             data.chapters = chapters;
                                         }
                                         chapters_widget().boxed()

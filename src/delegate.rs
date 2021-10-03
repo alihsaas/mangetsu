@@ -10,7 +10,10 @@ use druid::{
     AppDelegate, Command, DelegateCtx, Env, ExtEventSink, Handled, ImageBuf, Target,
 };
 use lru_cache::LruCache;
-use reqwest::{Url, header::{self, CONTENT_TYPE}};
+use reqwest::{
+    header::{self, CONTENT_TYPE},
+    Url,
+};
 
 use crate::{
     core::GlobalAPI,
@@ -47,11 +50,13 @@ impl AppDelegate<AppState> for Delegate {
         if let Some(manga_url) = cmd.get(cmd::FETCH_MANGA_DETAIL).cloned() {
             let event_sink = self.event_sink.clone();
             tokio::spawn(async move {
-                let connector = dbg!(GlobalAPI::global().connectors.iter().find(
-                    |(_, connector)| {
-                        connector.can_handle_uri(Url::parse(manga_url.as_ref()).unwrap())
-                    }
-                ));
+                let connector =
+                    dbg!(GlobalAPI::global()
+                        .connectors
+                        .iter()
+                        .find(|(_, connector)| {
+                            connector.can_handle_uri(Url::parse(manga_url.as_ref()).unwrap())
+                        }));
                 if let Some((_, connector)) = connector {
                     let manga = connector
                         .get_manga_from_url(Url::parse(manga_url.as_ref()).unwrap())
@@ -65,8 +70,14 @@ impl AppDelegate<AppState> for Delegate {
             });
             Handled::Yes
         } else if let Some(manga) = cmd.get(cmd::LOAD_MANGA_DETAIL).cloned() {
+            data.manga_cache
+                .lock()
+                .unwrap()
+                .insert(manga.url.clone(), manga.clone());
             data.manga_detail = Some(MangaDetail {
                 manga,
+                start: 1,
+                end: 1,
                 chapters: Vector::new(),
             });
             Handled::Yes
@@ -131,11 +142,9 @@ impl Delegate {
         _data: &mut AppState,
     ) -> Handled {
         if let Some(location) = cmd.get(remote_image::REQUEST_DATA).cloned() {
-            log::info!("Reqesting Image");
             let image_key = Path::new(location.as_ref()).file_name().unwrap().to_owned();
             let cache = &GlobalAPI::global().cache;
             if let Some(image_buf) = self.image_cache.get_mut(&location).cloned() {
-                log::info!("Memory Image");
                 let payload = remote_image::ImagePayload {
                     location,
                     image_buf,
